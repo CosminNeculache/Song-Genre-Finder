@@ -2,34 +2,65 @@ import os
 import requests
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
-API_KEY = os.getenv("DEEZER_API")
-BASE_URL = "https://api.deezer.com/"
+LASTFM_KEY = os.getenv("LASTFM_API")
+BASE_URL = "http://ws.audioscrobbler.com/2.0/"
 
 
-def get_top_songs(limit=51):
-    endpoint = "chart/0/tracks"
+def get_top_tracks(limit=51):
+    method = "chart.gettoptracks"
     params = {
+        "method": method,
+        "api_key": LASTFM_KEY,
         "limit": limit,
-        "output": "json"
+        "format": "json"
     }
 
-    response = requests.get(BASE_URL + endpoint, params=params)
+    response = requests.get(BASE_URL, params=params)
     data = response.json()
-    if "data" in data:
-        songs = data["data"]
-        return songs
+
+    if "tracks" in data and "track" in data["tracks"]:
+        tracks = data["tracks"]["track"]
+        return tracks
     else:
         return []
 
 
-top_songs = get_top_songs()
+def get_track_genres(artist_name, track_name):
+    method = "track.getInfo"
+    params = {
+        "method": method,
+        "api_key": LASTFM_KEY,
+        "artist": artist_name,
+        "track": track_name,
+        "format": "json"
+    }
 
-if top_songs:
-    print("Today's Top 50 Songs:")
-    for index, song in enumerate(top_songs, start=1):
-        print(f"{index}. {song['title']} by {song['artist']['name']}")
+    response = requests.get(BASE_URL, params=params)
+    data = response.json()
+
+    if "track" in data and "toptags" in data["track"] and "tag" in data["track"]["toptags"]:
+        genre_tags = data["track"]["toptags"]["tag"]
+        genres = [tag["name"] for tag in genre_tags]
+        return genres
+    else:
+        return []
+
+
+top_tracks = get_top_tracks()
+
+if top_tracks:
+    print("Today's Top 50 Tracks:")
+    for index, track in enumerate(top_tracks, start=1):
+        artist_name = track["artist"]["name"]
+        track_name = track["name"]
+        genres = get_track_genres(artist_name, track_name)
+
+        if genres:
+            genre_str = ", ".join(genres)
+            print(f"{index}. {track_name} by {artist_name} (Genres: {genre_str})")
+        else:
+            print(f"{index}. {track_name} by {artist_name} (Genres not available)")
 else:
-    print("Top songs not found.")
+    print("Top tracks not found.")
